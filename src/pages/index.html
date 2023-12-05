@@ -1,0 +1,229 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Modifying any <head> attributes of the page locally (including the title attribute) will have no effect when the page is uploaded to the Coveo platform.
+      If you wish to modify the page title, you should modify the `name` property defined in the coveo.deploy.json configuration file.
+    -->
+    <title>Cli_atomic_v1</title>
+    <link href="/atomic/themes/coveo.css" rel="stylesheet" />
+    <link href="/build/cli_atomic_v1.css" rel="stylesheet" />
+    <!-- 
+      When using the Coveo CDN - Make sure you're using the same minor version as the packaged Atomic.
+      E.g., if you have "@coveo/atomic@2.0.0" installed, use the "/atomic/v2.0.0/" path.
+      When deploying with the Coveo CLI, the Atomic CDN defined in the coveo.deploy.json configuration file will be used.
+    
+      <script type="module" src="https://static.cloud.coveo.com/atomic/vMAJOR.MINOR/atomic.esm.js"></script> 
+    -->
+    <script type="module" src="/atomic/atomic.esm.js"></script>
+    <!-- Custom Elements Lazy Loading -->
+    <script type="module" src="/build/cli_atomic_v1.esm.js"></script>
+    <!-- Global initialization script -->
+    <script type="module" src="/build/index.esm.js"></script>
+    <script type="module">
+      /**
+       * To import modules from `@coveo/headless`, you can use the following syntax:
+       * import { moduleName } from "./headless/headless.esm.js";
+       * Replace `moduleName` with the specific module you want to import from the `@coveo/headless` library.
+       * For example, if you want to import the `buildSearchEngine`,  you would use:
+       */
+import {initializeBindings} from 'https://static.cloud.coveo.com/atomic/v2/index.esm.js'; 
+import {buildFacet} from 'https://static.cloud.coveo.com/atomic/v2/headless/headless.esm.js'; 
+
+  class DropdownFacet extends HTMLElement {
+    shadow;
+    field;
+    bindings;
+    facetController;
+
+    facetUnsubscribe = () => {}; 
+    i18nUnsubscribe = () => {};
+
+    async connectedCallback() { 
+      try {
+        this.shadow = this.attachShadow({mode: 'closed'});
+
+        this.field = this.getAttribute('field');
+        if (!this.field) {
+          throw new Error('Missing "field" attribute');
+        }
+
+        this.bindings = await initializeBindings(this); 
+
+        this.facetController = buildFacet(this.bindings.engine, { 
+          options: {field: this.field},
+        });
+
+        this.facetUnsubscribe = this.facetController.subscribe(() => 
+          this.render()
+        );
+
+        const updateLanguage = () => this.render(); 
+        this.bindings.i18n.on('languageChanged', updateLanguage);
+        this.i18nUnsubscribe = () =>
+          this.bindings.i18n.off('languageChanged', updateLanguage);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    disconnectedCallback() { 
+      this.facetUnsubscribe();
+      this.i18nUnsubscribe();
+    }
+
+    get selectElement() {
+      return this.shadow.querySelector('select');
+    }
+
+    renderOption(facetValue) {
+      const facetValueCaption = this.bindings.i18n.t(facetValue.value, { 
+        ns: `caption-${this.field}`,
+      });
+      const selectedAttribute = facetValue.state === 'selected' ? 'selected' : '';
+      const count = `(${facetValue.numberOfResults.toLocaleString(
+        this.bindings.i18n.language
+      )})`;
+
+      return `<option value="${facetValue.value}" ${selectedAttribute}>${facetValueCaption} ${count}</option>`;
+    }
+
+    renderSelect() {
+      const {state} = this.facetController;
+
+      if (!state.values.length) {
+        return '';
+      }
+
+      const options = state.values.map((facetValue) =>
+        this.renderOption(facetValue)
+      );
+      options.unshift('<option value=""></option>');
+
+      return `<label for="author-facet">${this.bindings.i18n.t( 
+        this.field
+      )}: </label><select id="author-facet">${options}</select>`;
+    }
+
+    onChange() { 
+      const value = this.selectElement.value;
+      if (!value) {
+        this.facetController.deselectAll();
+        return;
+      }
+
+      const facetValue = this.facetController.state.values.find(
+        (facetValue) => value === facetValue.value
+      );
+
+      if (facetValue) {
+        this.facetController.toggleSingleSelect(facetValue);
+      }
+    }
+
+    render() {
+      this.shadow.innerHTML = this.renderSelect(); 
+      if (this.selectElement) {
+        this.selectElement.addEventListener('change', () => this.onChange());
+      }
+    }
+  }
+
+  window.customElements.define('dropdown-facet', DropdownFacet);
+  
+    </script> 
+    <script type='module'>
+  import {resultContext} from 'https://static.cloud.coveo.com/atomic/v2/index.esm.js';
+
+  class DocumentAuthor extends HTMLElement {
+    shadow;
+    result;
+    initialized = false;
+
+    async connectedCallback() {
+      if (this.initialized) { 
+        return;
+      }
+
+      this.initialized = true;
+      this.shadow = this.attachShadow({mode: 'closed'});
+
+      try {
+        this.result = await resultContext(this); 
+        this.render();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    render() {
+      this.shadow.innerHTML = `<p>Author: ${
+        this.result.raw.author ?? 'Anonymous'
+      }</p>`;
+    }
+  }
+
+  window.customElements.define('document-author', DocumentAuthor);
+</script>
+
+  </head>
+  <body>
+    <!-- 
+      This is a non-functional element.
+      Contents of this element will be parsed and injected in the bundle's HTML when deploying.
+    -->
+    <atomic-hosted-page>
+      <atomic-search-interface>
+        <atomic-search-layout>
+          <div class="tab-container">
+            <custom-tab expression="" label="All" is-active="true"></custom-tab>
+            <custom-tab
+              expression="@objecttype==(Knowledge)"
+              label="Knowledge"
+              is-active="false"
+            ></custom-tab>
+          </div>
+          <atomic-layout-section section="search">
+            <atomic-search-box></atomic-search-box>
+          </atomic-layout-section>
+          <atomic-layout-section section="facets">
+            <atomic-facet-manager>
+              <atomic-facet field="filetype" label="Filetype"></atomic-facet>
+              <atomic-facet field="source" label="Source"></atomic-facet>
+              <!-- https://docs.coveo.com/en/atomic/latest/cc-search/create-custom-components/native-components/#custom-component-example -->
+              <dropdown-facet field="author"></dropdown-facet>
+            </atomic-facet-manager>
+          </atomic-layout-section>
+          <atomic-layout-section section="main">
+            <atomic-layout-section section="status">
+              <atomic-breadbox></atomic-breadbox>
+              <atomic-query-summary></atomic-query-summary>
+              <atomic-refine-toggle></atomic-refine-toggle>
+              <atomic-sort-dropdown>
+                <atomic-sort-expression
+                  label="relevance"
+                  expression="relevancy"
+                ></atomic-sort-expression>
+                <atomic-sort-expression
+                  label="most-recent"
+                  expression="date descending"
+                ></atomic-sort-expression>
+              </atomic-sort-dropdown>
+              <atomic-did-you-mean></atomic-did-you-mean>
+            </atomic-layout-section>
+            <atomic-layout-section section="results">
+              <results-manager></results-manager>
+              <atomic-query-error></atomic-query-error>
+              <atomic-no-results></atomic-no-results>
+            </atomic-layout-section>
+            <atomic-layout-section section="pagination">
+              <atomic-load-more-results></atomic-load-more-results>
+            </atomic-layout-section>
+          </atomic-layout-section>
+        </atomic-search-layout>
+      </atomic-search-interface>
+    </atomic-hosted-page>
+  </body>
+</html>

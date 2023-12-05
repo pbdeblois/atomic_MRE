@@ -1,0 +1,29 @@
+{
+  "name": "cli_atomic_v1",
+  "description": "Cli_atomic_v1 project",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.js",
+  "types": "dist/types/index.d.ts",
+  "collection": "dist/collection/collection-manifest.json",
+  "collection:main": "dist/index.js",
+  "scripts": {
+    "start": "stencil build --dev --watch --serve",
+    "build": "stencil build && node deployment.esbuild.mjs",
+    "deploy": "npm run build && coveo ui:deploy"
+  },
+  "dependencies": {
+    "@coveo/atomic": "2.25.2",
+    "@coveo/headless": "2.13.1",
+    "@stencil/core": "2.17.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-replace": "5.0.2",
+    "esbuild": "0.17.18",
+    "gts": "3.1.1",
+    "prettier": "2.8.8",
+    "rollup-plugin-dotenv": "0.4.1",
+    "rollup-plugin-html": "0.2.1"
+  }
+}
